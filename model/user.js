@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
     joined: {
         type: Date, default: new Date()
     },
+    return: {
+		type: Date,
+		default: +new Date() + 7*24*60*60*1000,
+	},
     bookId: {
         type: ObjectId,
         ref: 'Book',
