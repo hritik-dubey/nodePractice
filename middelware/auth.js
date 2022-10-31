@@ -3,7 +3,7 @@ const { loginUser } = require("../controller/apiCollection");
 
 //Authentication & Authorization
 
-const mid1 = async function (req, res, next) {
+const Authentication = async function (req, res, next) {
   try {
     let token = req.headers.authorization
     if (!token) return res.status(401).send({ status: false, msg: "JWT Token must be present" });
@@ -26,4 +26,4 @@ const mid1 = async function (req, res, next) {
   }
 }
 
-module.exports.mid1 = mid1
+module.exports={Authentication}

@@ -36,16 +36,6 @@ let createBook = async (req, res) => {
 }
 let createLibrary = async (req, res) => {
     try {
-        // if(req.body.bookId){
-        // let  addBookInLibrary = await book.findOneAndUpdate({ '$push': { 'bookId.$': req.body.bookId }})
-        // return res.status(200).send({ status: true, message: "book created succesfully", data:addBookInLibrary });
-
-        // }
-        // if(req.body.userId){
-        //     let  addBookInLibrary = await book.findOneAndUpdate({ '$push': { 'bookId.$': req.body.page }})
-        //     return res.status(201).send({ status: true, message: "book created succesfully", data:addBookInLibrary });
-
-        // }
         let libraryCreate = await library.create(req.body)
         return res.status(201).send({ status: true, message: "library created succesfully", data: libraryCreate });
     } catch (err) {
@@ -70,26 +60,28 @@ const loginUser = async function (req, res) {
 };
 let allBook = async (req, res) => {
     try {
-        let getUser = await library.findOne({ userId: req.params.id })
-        if (getUser) {
-            let getBook = await book.find();
-            return res.status(201).send({ status: true, message: "book geted succesfully", data: getBook });
-        }
-
+        let books = await book.find()
+        return res.status(201).send({ status: true, message: "all books", data: books });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
 let getBook = async (req, res) => {
     try {
-        if (req.body.title) {
-            let getBook = await book.find({ title: { $regex: req.body.title, $options: "i" } })
+        if (req.body.author && req.body.title) {
+            let getBook = await book.find({$and: [{ author: { $regex: req.body.author, $options: "i" } },{ title: { $regex: req.body.title, $options: "i" } }]})
             return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
-        } if (req.body.author) {
+        }
+        if (req.body.author) {
             let getBook = await book.find({ author: { $regex: req.body.author, $options: "i" } })
             return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
         }
-    } catch (err) {
+        if (req.body.title) {
+            let getBook = await book.find({ title: { $regex: req.body.title, $options: "i" } })
+            return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
+        }
+        // return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
+    } catch (err) { 
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
@@ -107,10 +99,14 @@ let returnTime = async (req, res) => {
     }
 }
 let selectYourBook = async (req, res) => {
-    try {
+    try { 
+        const getuserId = req.decodeToken.userId;
+        let quantity = req.body.stock;
         let getBook = await book.findOne({ _id: req.body.bookId })
         if (getBook.stock) {
-            let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - 1) }, { new: true })
+            let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$push': { 'bookId': req.body.bookId }})
+            let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - quantity) }, { new: true })
+           let updateLibrary = await library.findOneAndUpdate({userId:getuserId},{isCheckOut:true},{ '$push': { 'bookId': req.body.bookId }})
             return res.status(200).send({ status: true, message: "collect your book", data: getUpdateBook });
         } else {
             return res.status(200).send({ status: true, message: "book is not availabel" });
@@ -121,14 +117,26 @@ let selectYourBook = async (req, res) => {
 }
 let extendDays = async (req, res) => {
     try {
+        const getuserId = req.decodeToken.userId;
         let adddays = req.body.day;
-        let getUser = await user.findOne({ _id: req.params.id })
-        let returnDate = getUser.return
-        returnDate.setDate(returnDate.getDate()+adddays)
-        let extendDate  = await  user.findByIdAndUpdate({_id: req.params.id},{return:returnDate},{new:true})
+        let getUser = await library.findOne({ userId: getuserId,bookId:req.body.bookId,isCheckOut:true})
+        let returnDate = getUser.returnDate
+        returnDate.setDate(returnDate.getDate() + adddays)
+        let extendDate = await library.findByIdAndUpdate({ _id: getuserId }, { return: returnDate }, { new: true })
         return res.status(200).send({ status: true, message: "your date is extended ", data: extendDate });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-module.exports = { createUser, createBook, createLibrary, allBook, getBook, returnTime, loginUser, selectYourBook,extendDays }
+let returnBook  =  async(req,res)=>{
+    try{
+        const getuserId = req.decodeToken.userId;
+        let getBookId = req.body.bookId;
+        let getUser = await library.findOneAndDelete({ userId: getuserId,bookId:req.body.bookId,isCheckOut:true})
+        let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$pull': { 'bookId.$': req.body.bookId }})
+        return res.status(200).send({ status: true, message: "your date is extended ", data: getUser });
+    }catch(err){
+        return res.status(500).send({ status: false, message: "Error", error: err.message })
+    }
+}
+module.exports = { createUser, createBook, createLibrary, allBook, getBook, returnTime, loginUser, selectYourBook, extendDays,returnBook}

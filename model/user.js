@@ -17,19 +17,10 @@ const userSchema = new mongoose.Schema({
     password: {
         type: String,
     },
-    joined: {
-        type: Date, default: new Date()
-    },
-    return: {
-		type: Date,
-		default: +new Date() + 7*24*60*60*1000,
-	},
-    bookId: {
-        type: ObjectId,
-        ref: 'Book',
-        required: true,
-        trim: true,
-    },
+    bookId: [{
+            type: ObjectId,
+            ref: 'Book',
+        }],
     gender: {
         type: String,
         enum: ["Male", "Female", "Other"]
