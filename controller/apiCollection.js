@@ -5,6 +5,7 @@ let library = require("../model/library")
 const jwt = require("jsonwebtoken");
 
 
+
 let createUser = async (req, res) => {
     try {
         if (req.body.email) {
@@ -34,14 +35,14 @@ let createBook = async (req, res) => {
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
-let createLibrary = async (req, res) => {
-    try {
-        let libraryCreate = await library.create(req.body)
-        return res.status(201).send({ status: true, message: "library created succesfully", data: libraryCreate });
-    } catch (err) {
-        return res.status(500).send({ status: false, message: "Error", error: err.message });
-    }
-}
+// let createLibrary = async (req, res) => {
+//     try {
+//         let libraryCreate = await library.create(req.body)
+//         return res.status(201).send({ status: true, message: "library created succesfully", data: libraryCreate });
+//     } catch (err) {
+//         return res.status(500).send({ status: false, message: "Error", error: err.message });
+//     }
+// }
 const loginUser = async function (req, res) {
     try {
 
@@ -69,7 +70,7 @@ let allBook = async (req, res) => {
 let searchBook = async (req, res) => {
     try {
         if (req.body.author && req.body.title) {
-            let getBook = await book.find({$and: [{ author: { $regex: req.body.author, $options: "i" } },{ title: { $regex: req.body.title, $options: "i" } }]})
+            let getBook = await book.find({ $and: [{ author: { $regex: req.body.author, $options: "i" } }, { title: { $regex: req.body.title, $options: "i" } }] })
             return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
         }
         if (req.body.author) {
@@ -81,7 +82,7 @@ let searchBook = async (req, res) => {
             return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
         }
         // return res.status(200).send({ status: true, message: "book geted succesfully", data: getBook });
-    } catch (err) { 
+    } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
@@ -100,15 +101,19 @@ let searchBook = async (req, res) => {
 //     }
 // }
 let selectYourBook = async (req, res) => {
-    try { 
+    try {
         const getuserId = req.decodeToken.userId;
         let quantity = req.body.stock;
         let getBook = await book.findOne({ _id: req.body.bookId })
-        if (getBook.stock) {
-            let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$push': { 'bookId': req.body.bookId }})
-            let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - quantity) }, { new: true })
-           let updateLibrary = await library.findOneAndUpdate({userId:getuserId},{isCheckOut:true},{ '$push': { 'bookId': req.body.bookId }})
-            return res.status(200).send({ status: true, message: "collect your book", data: getUpdateBook });
+        if (getBook.stock >= quantity) {
+            if (getBook.stock) {
+                for (let i = 0; i < quantity; i++) {
+                    let userUpdate = await user.findByIdAndUpdate({ _id: getuserId }, { '$push': { 'bookId': req.body.bookId } })
+                    let updateLibrary = await library.create({ bookId: req.body.bookId, userId: getuserId })
+                }
+                let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - quantity) }, { new: true })
+                return res.status(200).send({ status: true, message: "collect your book", data: getUpdateBook });
+            }
         } else {
             return res.status(200).send({ status: true, message: "book is not availabel" });
         }
@@ -120,37 +125,53 @@ let extendDays = async (req, res) => {
     try {
         const getuserId = req.decodeToken.userId;
         let adddays = req.body.day;
-        let getUser = await library.findOne({ userId: getuserId,bookId:req.body.bookId})
+        let getUser = await library.findOne({ userId: getuserId, bookId: req.body.bookId })
         let returnDate = getUser.returnDate
         returnDate.setDate(returnDate.getDate() + adddays)
-        let extendDate = await library.findOneAndUpdate({ userId: getuserId,bookId:req.body.bookId}, { returnDate: returnDate }, { new: true })
+        let extendDate = await library.findOneAndUpdate({ userId: getuserId, bookId: req.body.bookId }, { returnDate: returnDate }, { new: true })
         return res.status(200).send({ status: true, message: "your date is extended ", data: extendDate });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-let returnBook  =  async(req,res)=>{
-    try{
+let returnBook = async (req, res) => {
+    try {
+        let count = 0
         const getuserId = req.decodeToken.userId;
-        let getBookId = req.body.bookId;
-        let getUser = await library.findOneAndDelete({ userId: getuserId,bookId:req.body.bookId})
-        let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$pull': { 'bookId': req.body.bookId }})
-        return res.status(200).send({ status: true, message: "your book is returned ", data: getUser });
-    }catch(err){
+        let quantity = req.body.stock;
+        if (!quantity) {
+            quantity = 1
+        }
+        let getUser = await user.findById(getuserId)
+        let getBook = await book.findById(req.body.bookId)
+        for (let i = 0; i < getUser.bookId.length; i++) {
+            if ((getUser.bookId[i] == req.body.bookId) && quantity) {
+                let getLibrary = await library.findOneAndDelete({ userId: getuserId, bookId: req.body.bookId })
+                let result = await user.findOne({ _id: getuserId })
+                const index = result.bookId.findIndex(element => element === req.body.bookId );
+                result.bookId.splice(index, 1);
+                await result.save()
+                count++
+                quantity--
+            }
+        }
+        let updateBook = await book.findOneAndUpdate({ _id: req.body.bookId }, { stock: getBook.stock + count })
+        return res.status(200).send({ status: true, message: "your book is returned ", data: updateBook });
+    } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-let addBooksInLibrary  = async(req,res)=>{
-    try{
-       let getBook  = await book.findById(req.body.bookId) ;
-       if(getBook){
-        let addInLibrary  = await library.create(req.body);
-        return res.status(200).send({ status: true, message: "book added in library", data: addInLibrary });
-       }else{
-        return res.status(200).send({ status: true, message: "enter valid bookId"});
-       }
-    }catch(err){
+let addBooksInLibrary = async (req, res) => {
+    try {
+        let getBook = await book.findById(req.body.bookId);
+        if (getBook) {
+            let addInLibrary = await library.create(req.body);
+            return res.status(200).send({ status: true, message: "book added in library", data: addInLibrary });
+        } else {
+            return res.status(200).send({ status: true, message: "enter valid bookId" });
+        }
+    } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-module.exports = { createUser, createBook, createLibrary, allBook, searchBook, loginUser, selectYourBook, extendDays,returnBook,addBooksInLibrary}
+module.exports = { createUser, createBook, allBook, searchBook, loginUser, selectYourBook, extendDays, returnBook, addBooksInLibrary }

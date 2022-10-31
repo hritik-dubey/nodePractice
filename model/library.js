@@ -15,11 +15,7 @@ const librarySchema = new mongoose.Schema({
     returnDate: {
 		type: Date,
 		default: +new Date() + 7*24*60*60*1000,
-	},
-    isCheckOut:{
-        type:Boolean,
-        default:false
-    }
+	}
 }, {
     timestamps: { createdAt: true, updatedAt: true },
 })
