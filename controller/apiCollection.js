@@ -66,7 +66,7 @@ let allBook = async (req, res) => {
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
-let getBook = async (req, res) => {
+let searchBook = async (req, res) => {
     try {
         if (req.body.author && req.body.title) {
             let getBook = await book.find({$and: [{ author: { $regex: req.body.author, $options: "i" } },{ title: { $regex: req.body.title, $options: "i" } }]})
@@ -85,19 +85,20 @@ let getBook = async (req, res) => {
         return res.status(500).send({ status: false, message: "Error", error: err.message });
     }
 }
-let returnTime = async (req, res) => {
-    try {
-        let getUser = await user.findOne({ _id: req.params.id })
-        let getDate = getUser.return
-        let currentDate = new Date()
-        if (currentDate > getDate) {
-            return res.status(200).send({ status: true, message: "submit your book ", });
-        }
-        return res.status(200).send({ status: true, message: `submit your book  in ${~~((getDate - currentDate) / (1000 * 3600 * 24))} days` });
-    } catch (err) {
-        return res.status(500).send({ status: false, message: "Error", error: err.message });
-    }
-}
+// let returnTime = async (req, res) => {
+//     try {
+//         // let getUser = await user.findOne({ _id: req.params.id })
+//         const getUser = req.decodeToken.userId;
+//         let getDate = getUser.return
+//         let currentDate = new Date()
+//         if (currentDate > getDate) {
+//             return res.status(200).send({ status: true, message: "submit your book ", });
+//         }
+//         return res.status(200).send({ status: true, message: `submit your book  in ${~~((getDate - currentDate) / (1000 * 3600 * 24))} days` });
+//     } catch (err) {
+//         return res.status(500).send({ status: false, message: "Error", error: err.message });
+//     }
+// }
 let selectYourBook = async (req, res) => {
     try { 
         const getuserId = req.decodeToken.userId;
@@ -119,10 +120,10 @@ let extendDays = async (req, res) => {
     try {
         const getuserId = req.decodeToken.userId;
         let adddays = req.body.day;
-        let getUser = await library.findOne({ userId: getuserId,bookId:req.body.bookId,isCheckOut:true})
+        let getUser = await library.findOne({ userId: getuserId,bookId:req.body.bookId})
         let returnDate = getUser.returnDate
         returnDate.setDate(returnDate.getDate() + adddays)
-        let extendDate = await library.findByIdAndUpdate({ _id: getuserId }, { return: returnDate }, { new: true })
+        let extendDate = await library.findOneAndUpdate({ userId: getuserId,bookId:req.body.bookId}, { returnDate: returnDate }, { new: true })
         return res.status(200).send({ status: true, message: "your date is extended ", data: extendDate });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
@@ -132,11 +133,24 @@ let returnBook  =  async(req,res)=>{
     try{
         const getuserId = req.decodeToken.userId;
         let getBookId = req.body.bookId;
-        let getUser = await library.findOneAndDelete({ userId: getuserId,bookId:req.body.bookId,isCheckOut:true})
-        let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$pull': { 'bookId.$': req.body.bookId }})
-        return res.status(200).send({ status: true, message: "your date is extended ", data: getUser });
+        let getUser = await library.findOneAndDelete({ userId: getuserId,bookId:req.body.bookId})
+        let userUpdate = await user.findByIdAndUpdate({_id:getuserId},{ '$pull': { 'bookId': req.body.bookId }})
+        return res.status(200).send({ status: true, message: "your book is returned ", data: getUser });
     }catch(err){
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-module.exports = { createUser, createBook, createLibrary, allBook, getBook, returnTime, loginUser, selectYourBook, extendDays,returnBook}
+let addBooksInLibrary  = async(req,res)=>{
+    try{
+       let getBook  = await book.findById(req.body.bookId) ;
+       if(getBook){
+        let addInLibrary  = await library.create(req.body);
+        return res.status(200).send({ status: true, message: "book added in library", data: addInLibrary });
+       }else{
+        return res.status(200).send({ status: true, message: "enter valid bookId"});
+       }
+    }catch(err){
+        return res.status(500).send({ status: false, message: "Error", error: err.message })
+    }
+}
+module.exports = { createUser, createBook, createLibrary, allBook, searchBook, loginUser, selectYourBook, extendDays,returnBook,addBooksInLibrary}
