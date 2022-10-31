@@ -111,7 +111,7 @@ let selectYourBook = async (req, res) => {
                     let userUpdate = await user.findByIdAndUpdate({ _id: getuserId }, { '$push': { 'bookId': req.body.bookId } })
                     let updateLibrary = await library.create({ bookId: req.body.bookId, userId: getuserId })
                 }
-                let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - quantity) }, { new: true })
+                let getUpdateBook = await book.findByIdAndUpdate({ _id: req.body.bookId }, { stock: (getBook.stock - quantity) }, {new:true})
                 return res.status(200).send({ status: true, message: "collect your book", data: getUpdateBook });
             }
         } else {
@@ -125,10 +125,10 @@ let extendDays = async (req, res) => {
     try {
         const getuserId = req.decodeToken.userId;
         let adddays = req.body.day;
-        let getUser = await library.findOne({ userId: getuserId, bookId: req.body.bookId })
+        let getUser = await library.findOne({ userId: getuserId,_id:req.body.libraryId})
         let returnDate = getUser.returnDate
         returnDate.setDate(returnDate.getDate() + adddays)
-        let extendDate = await library.findOneAndUpdate({ userId: getuserId, bookId: req.body.bookId }, { returnDate: returnDate }, { new: true })
+        let extendDate = await library.findOneAndUpdate({ userId: getuserId,_id:req.body.libraryId }, { returnDate: returnDate }, { new: true })
         return res.status(200).send({ status: true, message: "your date is extended ", data: extendDate });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
@@ -155,23 +155,23 @@ let returnBook = async (req, res) => {
                 quantity--
             }
         }
-        let updateBook = await book.findOneAndUpdate({ _id: req.body.bookId }, { stock: getBook.stock + count })
+        let updateBook = await book.findOneAndUpdate({ _id: req.body.bookId }, { stock: getBook.stock + count },{new:true})
         return res.status(200).send({ status: true, message: "your book is returned ", data: updateBook });
     } catch (err) {
         return res.status(500).send({ status: false, message: "Error", error: err.message })
     }
 }
-let addBooksInLibrary = async (req, res) => {
-    try {
-        let getBook = await book.findById(req.body.bookId);
-        if (getBook) {
-            let addInLibrary = await library.create(req.body);
-            return res.status(200).send({ status: true, message: "book added in library", data: addInLibrary });
-        } else {
-            return res.status(200).send({ status: true, message: "enter valid bookId" });
-        }
-    } catch (err) {
-        return res.status(500).send({ status: false, message: "Error", error: err.message })
-    }
-}
-module.exports = { createUser, createBook, allBook, searchBook, loginUser, selectYourBook, extendDays, returnBook, addBooksInLibrary }
+// let addBooksInLibrary = async (req, res) => {
+//     try {
+//         let getBook = await book.findById(req.body.bookId);
+//         if (getBook) {
+//             let addInLibrary = await library.create(req.body);
+//             return res.status(200).send({ status: true, message: "book added in library", data: addInLibrary });
+//         } else {
+//             return res.status(200).send({ status: true, message: "enter valid bookId" });
+//         }
+//     } catch (err) {
+//         return res.status(500).send({ status: false, message: "Error", error: err.message })
+//     }
+// }
+module.exports = { createUser, createBook, allBook, searchBook, loginUser, selectYourBook, extendDays, returnBook}

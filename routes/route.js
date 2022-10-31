@@ -12,7 +12,7 @@ router.post("/searchBook",api.searchBook)
 router.post("/selectBook",auth.Authentication,api.selectYourBook)
 router.post("/extendDate",auth.Authentication,api.extendDays)
 router.post("/returnBook",auth.Authentication,api.returnBook)
-router.post("/addBooksInLibrary",api.addBooksInLibrary)
+// router.post("/addBooksInLibrary",api.addBooksInLibrary)
 
 
 module.exports = router;
